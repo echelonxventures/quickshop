@@ -30,13 +30,13 @@ INSERT INTO brands (name, slug, description, website, is_active) VALUES
 ('Sony', 'sony', 'Sony electronics and entertainment', 'https://sony.com', 1);
 
 -- Insert sample products
-INSERT INTO products (name, slug, description, short_description, price, sale_price, sku, category_id, brand_id, stock_quantity, seller_id, is_active, is_featured, created_by) VALUES
-('iPhone 14 Pro Max', 'iphone-14-pro-max', 'Latest iPhone 14 Pro Max with A16 Bionic chip', 'Latest iPhone with advanced features', 1099.99, 1049.99, 'IPH-001', 1, 1, 50, 4, 1, 1, 4),
-('AirPods Pro 2nd Gen', 'airpods-pro', 'Apple AirPods Pro with Active Noise Cancellation', 'Premium wireless earbuds', 249.99, 229.99, 'AIR-001', 1, 1, 100, 4, 1, 1, 4),
-('Nike Air Max 270', 'nike-air-max', 'Nike Air Max 270 running shoes', 'Comfortable running shoes', 149.99, NULL, 'NIK-001', 2, 2, 200, 4, 1, 0, 4),
-('Adidas Ultraboost 22', 'adidas-ultraboost', 'Adidas Ultraboost 22 running shoes', 'Premium running shoes', 189.99, 169.99, 'ADI-001', 2, 4, 150, 4, 1, 0, 4),
-('Samsung Galaxy S23 Ultra', 'galaxy-s23-ultra', 'Samsung Galaxy S23 Ultra flagship smartphone', 'Flagship Android phone', 1199.99, 1149.99, 'SAM-001', 1, 3, 30, 4, 1, 1, 4),
-('Sony WH-1000XM5', 'sony-wh1000xm5', 'Sony WH-1000XM5 Wireless Noise Canceling Headphones', 'Premium noise cancelling headphones', 399.99, 379.99, 'SON-001', 1, 5, 80, 4, 1, 0, 4);
+INSERT INTO products (name, slug, description, short_description, price, sale_price, sku, category_id, brand_id, stock_quantity, seller_id, is_active, is_featured, created_by, condition) VALUES
+('iPhone 14 Pro Max', 'iphone-14-pro-max', 'Latest iPhone 14 Pro Max with A16 Bionic chip', 'Latest iPhone with advanced features', 1099.99, 1049.99, 'IPH-001', 1, 1, 50, 4, 1, 1, 4, 'new'),
+('AirPods Pro 2nd Gen', 'airpods-pro', 'Apple AirPods Pro with Active Noise Cancellation', 'Premium wireless earbuds', 249.99, 229.99, 'AIR-001', 1, 1, 100, 4, 1, 1, 4, 'new'),
+('Nike Air Max 270', 'nike-air-max', 'Nike Air Max 270 running shoes', 'Comfortable running shoes', 149.99, NULL, 'NIK-001', 2, 2, 200, 4, 1, 0, 4, 'new'),
+('Adidas Ultraboost 22', 'adidas-ultraboost', 'Adidas Ultraboost 22 running shoes', 'Premium running shoes', 189.99, 169.99, 'ADI-001', 2, 4, 150, 4, 1, 0, 4, 'new'),
+('Samsung Galaxy S23 Ultra', 'galaxy-s23-ultra', 'Samsung Galaxy S23 Ultra flagship smartphone', 'Flagship Android phone', 1199.99, 1149.99, 'SAM-001', 1, 3, 30, 4, 1, 1, 4, 'new'),
+('Sony WH-1000XM5', 'sony-wh1000xm5', 'Sony WH-1000XM5 Wireless Noise Canceling Headphones', 'Premium noise cancelling headphones', 399.99, 379.99, 'SON-001', 1, 5, 80, 4, 1, 0, 4, 'new');
 
 -- Insert product images
 INSERT INTO product_images (product_id, image_url, alt_text, is_primary) VALUES
