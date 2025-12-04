@@ -1,17 +1,32 @@
-import React from 'react';
-import { ShoppingCartIcon, HeartIcon, UserIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+// Frontend React Components
 
-// Advanced Product Card Component
+import React, { useState, useEffect } from 'react';
+import { 
+  ShoppingCartIcon, 
+  HeartIcon, 
+  UserIcon, 
+  StarIcon, 
+  EyeIcon,
+  PlusIcon, 
+  MinusIcon,
+  CurrencyDollarIcon,
+  TruckIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  LockClosedIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
+
+// Product Card Component
 export const ProductCard = ({ product, onAddToCart, onAddToWishlist }) => {
-  const [isHovered, setIsHovered] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(product.is_wishlisted || false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [quantity, setQuantity] = useState(1);
 
   const handleAddToCart = async () => {
     setIsLoading(true);
     try {
-      await onAddToCart(product, 1, selectedVariant);
+      await onAddToCart(product, quantity);
     } finally {
       setIsLoading(false);
     }
@@ -28,36 +43,14 @@ export const ProductCard = ({ product, onAddToCart, onAddToWishlist }) => {
   };
 
   return (
-    <div 
-      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="relative">
         <img 
           src={product.images?.[0] || '/placeholder-product.jpg'} 
           alt={product.name}
-          className="w-full h-64 object-cover"
+          className="w-full h-48 object-cover"
           onError={(e) => e.target.src = '/placeholder-product.jpg'}
         />
-        
-        {/* Quick action buttons on hover */}
-        {isHovered && (
-          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center space-x-2 opacity-0 hover:opacity-100 transition-opacity">
-            <button 
-              onClick={handleAddToWishlist}
-              className="p-2 bg-white rounded-full hover:bg-gray-100"
-            >
-              <HeartIcon className={`h-5 w-5 ${isWishlisted ? 'text-red-500' : 'text-gray-600'}`} />
-            </button>
-            <Link to={`/product/${product.id}`}>
-              <button className="p-2 bg-white rounded-full hover:bg-gray-100">
-                <EyeIcon className="h-5 w-5 text-gray-600" />
-              </button>
-            </Link>
-          </div>
-        )}
-        
         <button
           onClick={handleAddToWishlist}
           className={`absolute top-2 right-2 p-2 rounded-full transition-colors duration-200 ${
@@ -66,8 +59,6 @@ export const ProductCard = ({ product, onAddToCart, onAddToWishlist }) => {
         >
           <HeartIcon className="h-5 w-5" />
         </button>
-        
-        {/* Badges */}
         {product.is_featured && (
           <span className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-xs px-2 py-1 rounded">
             Featured
@@ -79,7 +70,7 @@ export const ProductCard = ({ product, onAddToCart, onAddToWishlist }) => {
           </span>
         )}
         {product.sale_price && (
-          <span className="absolute bottom-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+          <span className="absolute top-12 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
             Sale
           </span>
         )}
@@ -108,22 +99,38 @@ export const ProductCard = ({ product, onAddToCart, onAddToWishlist }) => {
         <div className="flex items-center text-xs text-gray-500 mb-3">
           <span>{product.sold_quantity || 0} sold</span>
           <span className="mx-2">•</span>
-          <span>{product.available_stock || 0} in stock</span>
+          <span>{product.stock_quantity || 0} in stock</span>
         </div>
         
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center border border-gray-300 rounded-md">
+            <button
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              className="p-1 text-gray-600 hover:text-gray-900"
+            >
+              <MinusIcon className="h-4 w-4" />
+            </button>
+            <span className="px-2 py-1 text-sm">{quantity}</span>
+            <button
+              onClick={() => setQuantity(quantity + 1)}
+              className="p-1 text-gray-600 hover:text-gray-900"
+            >
+              <PlusIcon className="h-4 w-4" />
+            </button>
+          </div>
+          
           <button
             onClick={handleAddToCart}
-            disabled={isLoading || (product.available_stock || 0) <= 0}
+            disabled={isLoading || (product.stock_quantity || 0) <= 0}
             className={`flex-1 py-2 px-4 rounded-md text-white font-medium transition-colors duration-200 ${
-              (product.available_stock || 0) <= 0 
+              (product.stock_quantity || 0) <= 0 
                 ? 'bg-gray-400 cursor-not-allowed' 
                 : 'bg-indigo-600 hover:bg-indigo-700'
             }`}
           >
             {isLoading ? (
               <ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" />
-            ) : (product.available_stock || 0) <= 0 ? (
+            ) : (product.stock_quantity || 0) <= 0 ? (
               'Out of Stock'
             ) : (
               'Add to Cart'
@@ -135,7 +142,7 @@ export const ProductCard = ({ product, onAddToCart, onAddToWishlist }) => {
   );
 };
 
-// Advanced Cart Component
+// Cart Component
 export const Cart = ({ cartItems, onUpdateQuantity, onRemoveItem, onCheckout }) => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [promoCode, setPromoCode] = useState('');
@@ -159,60 +166,86 @@ export const Cart = ({ cartItems, onUpdateQuantity, onRemoveItem, onCheckout }) 
     }
   };
 
+  const toggleItemSelection = (itemId) => {
+    setSelectedItems(prev => 
+      prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId]
+    );
+  };
+
+  const calculateItemTotal = (item) => {
+    return item.price * (item.quantity || 1);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Shopping Cart</h1>
       
-      <div className="lg:grid lg:grid-cols-12 lg:gap-x-12">
-        <div className="lg:col-span-8">
-          {cartItems.length === 0 ? (
-            <div className="text-center py-12">
-              <ShoppingCartIcon className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Your cart is empty</h3>
-              <p className="mt-1 text-sm text-gray-500">Add some items to get started!</p>
-            </div>
-          ) : (
+      {cartItems.length === 0 ? (
+        <div className="text-center py-12">
+          <ShoppingCartIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Your cart is empty</h3>
+          <p className="mt-1 text-sm text-gray-500">Add some items to get started!</p>
+          <div className="mt-6">
+            <Link to="/products">
+              <button className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+                Browse Products
+              </button>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="lg:grid lg:grid-cols-12 lg:gap-x-12">
+          <div className="lg:col-span-8">
             <div className="bg-white shadow overflow-hidden sm:rounded-lg">
               <ul className="divide-y divide-gray-200">
                 {cartItems.map((item) => (
                   <li key={`${item.product_id}-${item.variant_id || 'default'}`} className="p-6">
                     <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.includes(`${item.product_id}-${item.variant_id || 'default'}`)}
+                        onChange={() => toggleItemSelection(`${item.product_id}-${item.variant_id || 'default'}`)}
+                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      
                       <img
                         src={item.image_url || item.product_images?.[0] || '/placeholder-product.jpg'}
                         alt={item.name}
-                        className="w-24 h-24 object-center object-cover rounded-md"
+                        className="ml-4 w-24 h-24 object-cover rounded-md"
                         onError={(e) => e.target.src = '/placeholder-product.jpg'}
                       />
                       
                       <div className="ml-4 flex-1">
                         <div>
                           <div className="flex justify-between">
-                            <h3 className="text-base font-medium text-gray-900">{item.name}</h3>
-                            <p className="ml-4 text-base font-medium text-gray-900">
+                            <h3 className="text-sm font-medium text-gray-900">{item.name}</h3>
+                            <p className="ml-4 text-sm font-medium text-gray-900">
                               ${(item.price * (item.quantity || 1)).toFixed(2)}
                             </p>
                           </div>
                           <p className="mt-1 text-sm text-gray-500">
-                            {item.variant_name ? item.variant_name : 'Default'}
+                            {item.variant_name || 'Default Variant'}
                           </p>
                         </div>
                         
                         <div className="mt-2 flex items-center">
-                          <button
-                            onClick={() => onUpdateQuantity(item.id, -1)}
-                            className="bg-gray-100 rounded-md p-1 text-gray-600 hover:bg-gray-200"
-                          >
-                            <MinusIcon className="h-5 w-5" />
-                          </button>
-                          
-                          <span className="mx-2 text-gray-700">{item.quantity}</span>
-                          
-                          <button
-                            onClick={() => onUpdateQuantity(item.id, 1)}
-                            className="bg-gray-100 rounded-md p-1 text-gray-600 hover:bg-gray-200"
-                          >
-                            <PlusIcon className="h-5 w-5" />
-                          </button>
+                          <div className="flex items-center border border-gray-300 rounded-md">
+                            <button
+                              onClick={() => onUpdateQuantity(item.id, -1)}
+                              className="p-1 text-gray-600 hover:text-gray-900"
+                            >
+                              <MinusIcon className="h-5 w-5" />
+                            </button>
+                            
+                            <span className="px-2 py-1 text-sm">{item.quantity}</span>
+                            
+                            <button
+                              onClick={() => onUpdateQuantity(item.id, 1)}
+                              className="p-1 text-gray-600 hover:text-gray-900"
+                            >
+                              <PlusIcon className="h-5 w-5" />
+                            </button>
+                          </div>
                           
                           <button
                             onClick={() => onRemoveItem(item.id)}
@@ -227,83 +260,80 @@ export const Cart = ({ cartItems, onUpdateQuantity, onRemoveItem, onCheckout }) 
                 ))}
               </ul>
             </div>
-          )}
-        </div>
-        
-        {/* Order Summary */}
-        <div className="mt-10 lg:mt-0 lg:col-span-4">
-          <div className="bg-white shadow sm:rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h2 className="text-lg font-medium text-gray-900">Order Summary</h2>
-              
-              <div className="mt-6 space-y-4">
-                <div className="flex justify-between text-base text-gray-900">
-                  <p>Subtotal</p>
-                  <p>${subtotal.toFixed(2)}</p>
-                </div>
+            
+            <div className="mt-6 flex items-center">
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="Promo code"
+                className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+              />
+              <button
+                onClick={handleApplyPromo}
+                className="ml-3 bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+          
+          {/* Order Summary */}
+          <div className="mt-10 lg:mt-0 lg:col-span-4">
+            <div className="bg-white shadow sm:rounded-lg">
+              <div className="px-4 py-5 sm:p-6">
+                <h2 className="text-lg font-medium text-gray-900">Order Summary</h2>
                 
-                {appliedDiscount > 0 && (
-                  <div className="flex justify-between text-base text-green-600">
-                    <p>Discount ({appliedDiscount}%)</p>
-                    <p>-${discountAmount.toFixed(2)}</p>
+                <div className="mt-6 space-y-4">
+                  <div className="flex justify-between text-base text-gray-900">
+                    <p>Subtotal</p>
+                    <p>${subtotal.toFixed(2)}</p>
                   </div>
-                )}
-                
-                <div className="flex justify-between text-base text-gray-900">
-                  <p>Shipping</p>
-                  <p>{shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}</p>
+                  
+                  {appliedDiscount > 0 && (
+                    <div className="flex justify-between text-base text-green-600">
+                      <p>Discount ({appliedDiscount}%)</p>
+                      <p>-${discountAmount.toFixed(2)}</p>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between text-base text-gray-900">
+                    <p>Shipping</p>
+                    <p>{shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}</p>
+                  </div>
+                  
+                  <div className="flex justify-between text-base text-gray-900">
+                    <p>Tax</p>
+                    <p>${taxAmount.toFixed(2)}</p>
+                  </div>
+                  
+                  <div className="flex justify-between text-lg font-bold text-gray-900 border-t border-gray-200 pt-4">
+                    <p>Total</p>
+                    <p>${total.toFixed(2)}</p>
+                  </div>
                 </div>
                 
-                <div className="flex justify-between text-base text-gray-900">
-                  <p>Tax</p>
-                  <p>${taxAmount.toFixed(2)}</p>
-                </div>
-                
-                <div className="flex justify-between text-lg font-bold text-gray-900 border-t border-gray-200 pt-4">
-                  <p>Total</p>
-                  <p>${total.toFixed(2)}</p>
-                </div>
-              </div>
-              
-              {/* Promo Code Section */}
-              <div className="mt-6">
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    placeholder="Promo code"
-                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  />
+                <div className="mt-6">
                   <button
-                    onClick={handleApplyPromo}
-                    className="bg-gray-800 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-700"
+                    onClick={() => onCheckout(cartItems)}
+                    disabled={cartItems.length === 0}
+                    className={`w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                      cartItems.length === 0 ? 'bg-gray-400 cursor-not-allowed' : ''
+                    }`}
                   >
-                    Apply
+                    Proceed to Checkout
                   </button>
                 </div>
-              </div>
-              
-              <div className="mt-6">
-                <button
-                  onClick={onCheckout}
-                  disabled={cartItems.length === 0}
-                  className={`w-full bg-indigo-600 text-white py-3 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                    cartItems.length === 0 ? 'bg-gray-400 cursor-not-allowed' : ''
-                  }`}
-                >
-                  Proceed to Checkout
-                </button>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-// Advanced Checkout Component
+// Checkout Component
 export const Checkout = ({ cartItems, onOrderSubmit }) => {
   const [step, setStep] = useState(1); // 1: Address, 2: Payment, 3: Review
   const [shippingAddress, setShippingAddress] = useState({
@@ -343,16 +373,33 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
   const shippingCost = subtotal > 50 ? 0 : 5.99; // Free shipping over $50
   const total = subtotal + taxAmount + shippingCost;
 
+  const handleAddressChange = (field, value, isBilling = false) => {
+    const setAddress = isBilling ? setBillingAddress : setShippingAddress;
+    const address = isBilling ? billingAddress : shippingAddress;
+    
+    setAddress({
+      ...address,
+      [field]: value
+    });
+  };
+
+  const handlePaymentChange = (field, value) => {
+    setCreditCard({
+      ...creditCard,
+      [field]: value
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     const orderData = {
       shipping_address: billingAddress.same_as_shipping ? shippingAddress : billingAddress,
       billing_address: billingAddress.same_as_shipping ? shippingAddress : billingAddress,
-      payment_method: payment_method,
-      payment_data: payment_method === 'credit_card' ? credit_card : {},
+      payment_method: paymentMethod,
+      payment_data: paymentMethod === 'credit_card' ? creditCard : {},
       cart_items: cartItems,
-      notes: order_notes,
+      notes: orderNotes,
       subtotal,
       tax_amount: taxAmount,
       shipping_cost,
@@ -414,7 +461,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="text"
                       id="first-name"
                       value={shippingAddress.first_name}
-                      onChange={(e) => setShippingAddress({...shippingAddress, first_name: e.target.value})}
+                      onChange={(e) => handleAddressChange('first_name', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
@@ -427,7 +474,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="text"
                       id="last-name"
                       value={shippingAddress.last_name}
-                      onChange={(e) => setShippingAddress({...shippingAddress, last_name: e.target.value})}
+                      onChange={(e) => handleAddressChange('last_name', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
@@ -440,7 +487,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="text"
                       id="address"
                       value={shippingAddress.address_line_1}
-                      onChange={(e) => setShippingAddress({...shippingAddress, address_line_1: e.target.value})}
+                      onChange={(e) => handleAddressChange('address_line_1', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
@@ -453,7 +500,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="text"
                       id="city"
                       value={shippingAddress.city}
-                      onChange={(e) => setShippingAddress({...shippingAddress, city: e.target.value})}
+                      onChange={(e) => handleAddressChange('city', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
@@ -466,7 +513,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="text"
                       id="state"
                       value={shippingAddress.state}
-                      onChange={(e) => setShippingAddress({...shippingAddress, state: e.target.value})}
+                      onChange={(e) => handleAddressChange('state', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
@@ -479,7 +526,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="text"
                       id="postal-code"
                       value={shippingAddress.postal_code}
-                      onChange={(e) => setShippingAddress({...shippingAddress, postal_code: e.target.value})}
+                      onChange={(e) => handleAddressChange('postal_code', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
@@ -491,7 +538,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                     <select
                       id="country"
                       value={shippingAddress.country}
-                      onChange={(e) => setShippingAddress({...shippingAddress, country: e.target.value})}
+                      onChange={(e) => handleAddressChange('country', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     >
                       <option value="US">United States</option>
@@ -510,7 +557,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="tel"
                       id="phone"
                       value={shippingAddress.phone}
-                      onChange={(e) => setShippingAddress({...shippingAddress, phone: e.target.value})}
+                      onChange={(e) => handleAddressChange('phone', e.target.value)}
                       className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
@@ -522,7 +569,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                         name="same-as-shipping"
                         type="checkbox"
                         checked={billingAddress.same_as_shipping}
-                        onChange={(e) => setBillingAddress({...billingAddress, same_as_shipping: e.target.checked})}
+                        onChange={(e) => handleAddressChange('same_as_shipping', e.target.checked, true)}
                         className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                       />
                       <label htmlFor="same-as-shipping" className="ml-2 block text-sm text-gray-900">
@@ -555,7 +602,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="radio"
                       name="payment-method"
                       value="credit_card"
-                      checked={payment_method === 'credit_card'}
+                      checked={paymentMethod === 'credit_card'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
                     />
@@ -567,7 +614,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="radio"
                       name="payment-method"
                       value="paypal"
-                      checked={payment_method === 'paypal'}
+                      checked={paymentMethod === 'paypal'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
                     />
@@ -579,7 +626,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                       type="radio"
                       name="payment-method"
                       value="cod"
-                      checked={payment_method === 'cod'}
+                      checked={paymentMethod === 'cod'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
                     />
@@ -590,6 +637,19 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                 {paymentMethod === 'credit_card' && (
                   <div className="mt-6 space-y-4">
                     <div>
+                      <label htmlFor="card-name" className="block text-sm font-medium text-gray-700">
+                        Name on Card
+                      </label>
+                      <input
+                        type="text"
+                        id="card-name"
+                        value={creditCard.name}
+                        onChange={(e) => handlePaymentChange('name', e.target.value)}
+                        className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      />
+                    </div>
+                    
+                    <div>
                       <label htmlFor="card-number" className="block text-sm font-medium text-gray-700">
                         Card Number
                       </label>
@@ -597,7 +657,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                         type="text"
                         id="card-number"
                         value={creditCard.number}
-                        onChange={(e) => setCreditCard({...creditCard, number: e.target.value})}
+                        onChange={(e) => handlePaymentChange('number', e.target.value)}
                         className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         placeholder="0000 0000 0000 0000"
                       />
@@ -612,7 +672,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                           type="text"
                           id="expiry"
                           value={creditCard.expiry}
-                          onChange={(e) => setCreditCard({...creditCard, expiry: e.target.value})}
+                          onChange={(e) => handlePaymentChange('expiry', e.target.value)}
                           className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                           placeholder="MM/YY"
                         />
@@ -626,24 +686,11 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                           type="text"
                           id="cvv"
                           value={creditCard.cvv}
-                          onChange={(e) => setCreditCard({...creditCard, cvv: e.target.value})}
+                          onChange={(e) => handlePaymentChange('cvv', e.target.value)}
                           className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                           placeholder="123"
                         />
                       </div>
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="card-name" className="block text-sm font-medium text-gray-700">
-                        Name on Card
-                      </label>
-                      <input
-                        type="text"
-                        id="card-name"
-                        value={creditCard.name}
-                        onChange={(e) => setCreditCard({...creditCard, name: e.target.value})}
-                        className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      />
                     </div>
                   </div>
                 )}
@@ -681,7 +728,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                           <img
                             src={item.image_url || item.product_images?.[0] || '/placeholder-product.jpg'}
                             alt={item.name}
-                            className="w-16 h-16 object-center object-cover rounded-md"
+                            className="w-16 h-16 object-cover rounded-md"
                             onError={(e) => e.target.src = '/placeholder-product.jpg'}
                           />
                           <div className="ml-4">
@@ -728,16 +775,16 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                 <div className="border rounded-lg p-4 mb-6">
                   <h3 className="font-medium text-gray-900 mb-2">Billing Address</h3>
                   <p className="text-sm text-gray-600">
-                    {billingAddress.same_as_shipping
+                    {(billingAddress.same_as_shipping
                       ? `${shippingAddress.first_name} ${shippingAddress.last_name}\n${shippingAddress.address_line_1}\n${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.postal_code}\n${shippingAddress.country}\n${shippingAddress.phone}`
                       : `${billingAddress.first_name} ${billingAddress.last_name}\n${billingAddress.address_line_1}\n${billingAddress.city}, ${billingAddress.state} ${billingAddress.postal_code}\n${billingAddress.country}\n${billingAddress.phone}`
-                    }
+                    )}
                   </p>
                 </div>
                 
                 <div className="border rounded-lg p-4 mb-6">
                   <h3 className="font-medium text-gray-900 mb-2">Payment Method</h3>
-                  <p className="text-sm text-gray-600 capitalize">{payment_method.replace('_', ' ')}</p>
+                  <p className="text-sm text-gray-600 capitalize">{paymentMethod.replace('_', ' ')}</p>
                 </div>
                 
                 <div>
@@ -804,7 +851,7 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
                 <div className="mt-6 flex items-center">
                   <LockClosedIcon className="h-5 w-5 text-gray-400" />
                   <p className="ml-2 text-xs text-gray-500">
-                    Your information is secure and encrypted.
+                    Secure checkout with 256-bit encryption
                   </p>
                 </div>
               </div>
@@ -816,14 +863,14 @@ export const Checkout = ({ cartItems, onOrderSubmit }) => {
   );
 };
 
-// Advanced User Profile Component
+// User Profile Component
 export const UserProfile = ({ user, onUpdateProfile }) => {
   const [formData, setFormData] = useState({
     name: user.name || '',
     email: user.email || '',
     phone: user.phone || '',
     bio: user.bio || '',
-    address: user.address || '',
+    address_line_1: user.address_line_1 || '',
     city: user.city || '',
     state: user.state || '',
     postal_code: user.postal_code || '',
@@ -855,7 +902,7 @@ export const UserProfile = ({ user, onUpdateProfile }) => {
   if (!user) {
     return (
       <div className="flex justify-center items-center h-64">
-        <p>Loading profile...</p>
+        <ArrowPathIcon className="h-8 w-8 animate-spin text-indigo-600" />
       </div>
     );
   }
@@ -880,16 +927,12 @@ export const UserProfile = ({ user, onUpdateProfile }) => {
               
               <div className="mt-6 space-y-4">
                 <div className="flex items-center text-sm text-gray-600">
-                  <MailIcon className="h-5 w-5 mr-2" />
-                  {user.email}
+                  <LockClosedIcon className="h-5 w-5 mr-2" />
+                  <span>{user.is_verified ? 'Verified' : 'Not Verified'}</span>
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
-                  <PhoneIcon className="h-5 w-5 mr-2" />
-                  {user.phone || 'Not provided'}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <LocationMarkerIcon className="h-5 w-5 mr-2" />
-                  {user.city}, {user.state}
+                  <CurrencyDollarIcon className="h-5 w-5 mr-2" />
+                  <span>Registered Customer</span>
                 </div>
               </div>
             </div>
@@ -1004,8 +1047,8 @@ export const UserProfile = ({ user, onUpdateProfile }) => {
                       <input
                         type="text"
                         id="address"
-                        name="address"
-                        value={formData.address}
+                        name="address_line_1"
+                        value={formData.address_line_1}
                         onChange={handleChange}
                         className="mt-1 block w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                       />
@@ -1066,33 +1109,44 @@ export const UserProfile = ({ user, onUpdateProfile }) => {
                 </form>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-500">Name:</span>
-                    <span className="text-sm text-gray-900">{user.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-500">Email:</span>
-                    <span className="text-sm text-gray-900">{user.email}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-500">Phone:</span>
-                    <span className="text-sm text-gray-900">{user.phone || 'Not provided'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-500">Bio:</span>
-                    <span className="text-sm text-gray-900">{user.bio || 'Not provided'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-500">Address:</span>
-                    <span className="text-sm text-gray-900">{user.address || 'Not provided'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-500">City:</span>
-                    <span className="text-sm text-gray-900">{user.city || 'Not provided'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-gray-500">State:</span>
-                    <span className="text-sm text-gray-900">{user.state || 'Not provided'}</span>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Name</h4>
+                      <p className="text-sm text-gray-900">{user.name}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Email</h4>
+                      <p className="text-sm text-gray-900">{user.email}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Phone</h4>
+                      <p className="text-sm text-gray-900">{user.phone || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Role</h4>
+                      <p className="text-sm text-gray-900 capitalize">{user.role}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <h4 className="text-sm font-medium text-gray-500">Bio</h4>
+                      <p className="text-sm text-gray-900">{user.bio || 'Not provided'}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <h4 className="text-sm font-medium text-gray-500">Address</h4>
+                      <p className="text-sm text-gray-900">{user.address_line_1 || 'Not provided'}</p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <h4 className="text-sm font-medium text-gray-500">Location</h4>
+                      <p className="text-sm text-gray-900">
+                        {user.city && user.state ? 
+                          `${user.city}, ${user.state} ${user.postal_code}` : 
+                          'Not provided'
+                        }
+                      </p>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <h4 className="text-sm font-medium text-gray-500">Member Since</h4>
+                      <p className="text-sm text-gray-900">{new Date(user.created_at).toLocaleDateString()}</p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1105,11 +1159,11 @@ export const UserProfile = ({ user, onUpdateProfile }) => {
 };
 
 // Order History Component
-export const OrderHistory = ({ orders, onOrderDetails }) => {
+export const OrderHistory = ({ orders, onViewOrderDetails }) => {
   if (!orders || orders.length === 0) {
     return (
       <div className="text-center py-12">
-        <ShoppingBagIcon className="mx-auto h-12 w-12 text-gray-400" />
+        <ShoppingCartIcon className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">No orders</h3>
         <p className="mt-1 text-sm text-gray-500">You haven't placed any orders yet.</p>
         <div className="mt-6">
@@ -1131,7 +1185,7 @@ export const OrderHistory = ({ orders, onOrderDetails }) => {
         <ul className="divide-y divide-gray-200">
           {orders.map((order) => (
             <li key={order.id}>
-              <div className="px-4 py-4 sm:px-6">
+              <div className="px-4 py-5 sm:px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <p className="text-sm font-medium text-indigo-600 truncate">
@@ -1154,14 +1208,14 @@ export const OrderHistory = ({ orders, onOrderDetails }) => {
                   </div>
                 </div>
                 
-                <div className="mt-2 sm:flex sm:justify-between">
+                <div className="mt-4 sm:flex sm:justify-between">
                   <div className="sm:flex">
                     <div className="mr-6 flex items-center text-sm text-gray-500">
                       <CurrencyDollarIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
                       ${order.total_amount.toFixed(2)}
                     </div>
-                    <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                      <ShoppingBagIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
+                    <div className="mt-2 sm:mt-0 flex items-center text-sm text-gray-500">
+                      <ShoppingCartIcon className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" />
                       {order.items_count} items
                     </div>
                   </div>
@@ -1175,7 +1229,7 @@ export const OrderHistory = ({ orders, onOrderDetails }) => {
               <div className="bg-gray-50 px-4 py-4 sm:px-6">
                 <div className="flex justify-end">
                   <button
-                    onClick={() => onOrderDetails(order.id)}
+                    onClick={() => onViewOrderDetails(order.id)}
                     className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
                   >
                     View Order Details
@@ -1190,73 +1244,10 @@ export const OrderHistory = ({ orders, onOrderDetails }) => {
   );
 };
 
-// Wishlist Component
-export const Wishlist = ({ wishlistItems, onRemoveFromWishlist, onAddToCart }) => {
-  if (!wishlistItems || wishlistItems.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <HeartIcon className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">Your wishlist is empty</h3>
-        <p className="mt-1 text-sm text-gray-500">Add items you love to save them for later.</p>
-        <div className="mt-6">
-          <Link to="/products">
-            <button className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
-              Browse Products
-            </button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">My Wishlist</h1>
-      
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {wishlistItems.map((item) => (
-          <div key={`${item.product_id}-${item.variant_id || 'default'}`} className="bg-white shadow rounded-lg overflow-hidden">
-            <img 
-              src={item.product_images?.[0] || '/placeholder-product.jpg'} 
-              alt={item.product_name}
-              className="w-full h-48 object-cover"
-              onError={(e) => e.target.src = '/placeholder-product.jpg'}
-            />
-            
-            <div className="p-4">
-              <h3 className="text-lg font-medium text-gray-900">{item.product_name}</h3>
-              <div className="mt-2 flex items-center">
-                <p className="text-lg font-bold text-gray-900">${item.current_price}</p>
-              </div>
-              
-              <div className="mt-4 flex space-x-2">
-                <button
-                  onClick={() => onAddToCart(item, 1)}
-                  className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700"
-                >
-                  Add to Cart
-                </button>
-                
-                <button
-                  onClick={() => onRemoveFromWishlist(item.id)}
-                  className="bg-red-600 text-white p-2 rounded-md hover:bg-red-700"
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 export default {
   ProductCard,
   Cart,
   Checkout,
   UserProfile,
-  OrderHistory,
-  Wishlist
+  OrderHistory
 };

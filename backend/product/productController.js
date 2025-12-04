@@ -1,210 +1,189 @@
-// productController.js - Product management controller
+// Product controller with advanced features
 const db = require('../db');
 
-// Get all products with pagination and filters
-const getAllProducts = async (req, res) => {
+// Get all products with advanced filtering, search, and pagination
+const getProducts = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const offset = (page - 1) * limit;
-    const category = req.query.category;
-    const minPrice = req.query.minPrice;
-    const maxPrice = req.query.maxPrice;
-    const sortBy = req.query.sortBy || 'created_at';
-    const sortOrder = req.query.sortOrder || 'DESC';
-    
-    let query = 'SELECT * FROM products WHERE 1=1';
-    let params = [];
-    
-    if (category) {
-      query += ' AND category_id = ?';
-      params.push(category);
-    }
-    
-    if (minPrice) {
-      query += ' AND price >= ?';
-      params.push(minPrice);
-    }
-    
-    if (maxPrice) {
-      query += ' AND price <= ?';
-      params.push(maxPrice);
-    }
-    
-    query += ` ORDER BY ${sortBy} ${sortOrder} LIMIT ? OFFSET ?`;
-    params.push(limit, offset);
-    
-    const [products] = await db.pool.execute(query, params);
-    
-    // Get total count for pagination
-    const countQuery = 'SELECT COUNT(*) as total FROM products WHERE 1=1';
-    const countParams = [];
-    
-    if (category) {
-      countQuery += ' AND category_id = ?';
-      countParams.push(category);
-    }
-    
-    if (minPrice) {
-      countQuery += ' AND price >= ?';
-      countParams.push(minPrice);
-    }
-    
-    if (maxPrice) {
-      countQuery += ' AND price <= ?';
-      countParams.push(maxPrice);
-    }
-    
-    const [countResult] = await db.pool.execute(countQuery, countParams);
-    const total = countResult[0].total;
-    
-    res.status(200).json({
-      products,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Get all products error:', error);
-    res.status(500).json({ message: 'Server error while fetching products' });
-  }
-};
+    const {
+      page = 1,
+      limit = 12,
+      category = null,
+      brand = null,
+      min_price = null,
+      max_price = null,
+      rating = null,
+      in_stock = null,
+      on_sale = null,
+      sort_by = 'created_at',
+      sort_order = 'DESC',
+      search = null,
+      seller = null,
+      condition = null,
+      tags = null,
+      attributes = null
+    } = req.query;
 
-// Search products
-const searchProducts = async (req, res) => {
-  try {
-    const { q, page = 1, limit = 10 } = req.query;
     const offset = (page - 1) * limit;
     
-    if (!q) {
-      return res.status(400).json({ message: 'Search query is required' });
+    let baseQuery = `
+      SELECT 
+        p.*,
+        c.name as category_name,
+        b.name as brand_name,
+        u.name as seller_name,
+        u.id as seller_id,
+        (SELECT COUNT(*) FROM reviews WHERE product_id = p.id AND is_approved = 1) as review_count,
+        (SELECT AVG(rating) FROM reviews WHERE product_id = p.id AND is_approved = 1) as calculated_rating,
+        (SELECT COUNT(*) FROM wishlist_items WHERE product_id = p.id) as wishlist_count,
+        (p.stock_quantity - p.reserved_quantity) as available_stock
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      LEFT JOIN users u ON p.created_by = u.id
+      WHERE p.is_active = 1
+    `;
+    
+    let countQuery = `
+      SELECT COUNT(*) as total
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      LEFT JOIN users u ON p.created_by = u.id
+      WHERE p.is_active = 1
+    `;
+    
+    const params = [];
+    
+    // Apply filters
+    if (category) {
+      baseQuery += ' AND (c.id = ? OR c.parent_id = ?)';
+      countQuery += ' AND (c.id = ? OR c.parent_id = ?)';
+      params.push(category, category);
     }
     
-    // Simple search in name and description
-    const query = `
-      SELECT * FROM products 
-      WHERE name LIKE ? OR description LIKE ? 
-      ORDER BY name 
-      LIMIT ? OFFSET ?
-    `;
-    const params = [`%${q}%`, `%${q}%`, parseInt(limit), parseInt(offset)];
+    if (brand) {
+      baseQuery += ' AND b.id = ?';
+      countQuery += ' AND b.id = ?';
+      params.push(brand);
+    }
     
-    const [products] = await db.pool.execute(query, params);
+    if (min_price) {
+      baseQuery += ' AND p.price >= ?';
+      countQuery += ' AND p.price >= ?';
+      params.push(min_price);
+    }
     
-    // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) as total FROM products 
-      WHERE name LIKE ? OR description LIKE ?
-    `;
-    const countParams = [`%${q}%`, `%${q}%`];
+    if (max_price) {
+      baseQuery += ' AND p.price <= ?';
+      countQuery += ' AND p.price <= ?';
+      params.push(max_price);
+    }
     
-    const [countResult] = await db.pool.execute(countQuery, countParams);
+    if (rating) {
+      baseQuery += ' AND (SELECT AVG(rating) FROM reviews WHERE product_id = p.id AND is_approved = 1) >= ?';
+      countQuery += ' AND (SELECT AVG(rating) FROM reviews WHERE product_id = p.id AND is_approved = 1) >= ?';
+      params.push(rating);
+    }
+    
+    if (in_stock === 'true') {
+      baseQuery += ' AND (p.stock_quantity - p.reserved_quantity) > 0';
+      countQuery += ' AND (p.stock_quantity - p.reserved_quantity) > 0';
+    }
+    
+    if (on_sale === 'true') {
+      baseQuery += ' AND p.sale_price IS NOT NULL AND p.sale_price < p.price';
+      countQuery += ' AND p.sale_price IS NOT NULL AND p.sale_price < p.price';
+    }
+    
+    if (search) {
+      baseQuery += ' AND (p.name LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)';
+      countQuery += ' AND (p.name LIKE ? OR p.description LIKE ? OR p.tags LIKE ?)';
+      const searchParam = `%${search}%`;
+      params.push(searchParam, searchParam, `%${searchParam}%`);
+    }
+    
+    if (seller) {
+      baseQuery += ' AND p.created_by = ?';
+      countQuery += ' AND p.created_by = ?';
+      params.push(seller);
+    }
+    
+    if (condition) {
+      baseQuery += ' AND p.condition = ?';
+      countQuery += ' AND p.condition = ?';
+      params.push(condition);
+    }
+    
+    if (tags) {
+      const tagArray = tags.split(',');
+      tagArray.forEach(() => {
+        baseQuery += ' AND JSON_CONTAINS(p.tags, ?)';
+        countQuery += ' AND JSON_CONTAINS(p.tags, ?)';
+        params.push(`"${tag}"`);
+      });
+    }
+    
+    // Sorting
+    const validSortFields = ['created_at', 'price', 'rating', 'name', 'sold_quantity', 'views'];
+    const validSortOrders = ['ASC', 'DESC'];
+    
+    const sortByField = validSortFields.includes(sort_by) ? sort_by : 'created_at';
+    const sortOrderValue = validSortOrders.includes(sort_order.toUpperCase()) ? sort_order.toUpperCase() : 'DESC';
+    
+    baseQuery += ` ORDER BY p.${sortByField} ${sortOrderValue} LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    // Execute queries
+    const [products] = await db.pool.execute(baseQuery, params);
+    const [countResult] = await db.pool.execute(countQuery, params.slice(0, -2)); // Remove limit and offset params
     const total = countResult[0].total;
     
+    // Process products for frontend
+    const processedProducts = products.map(product => ({
+      ...product,
+      calculated_rating: parseFloat(product.calculated_rating || 0),
+      review_count: product.review_count || 0,
+      wishlist_count: product.wishlist_count || 0,
+      available_stock: product.available_stock || 0,
+      stock_status: product.available_stock > 10 ? 'in_stock' : product.available_stock > 0 ? 'low_stock' : 'out_of_stock',
+      images: product.images ? JSON.parse(product.images) : [],
+      specifications: product.specifications ? JSON.parse(product.specifications) : {},
+      attributes: product.attributes ? JSON.parse(product.attributes) : {},
+      tags: product.tags ? JSON.parse(product.tags) : [],
+      price: parseFloat(product.price),
+      sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
+      created_at: product.created_at.toISOString(),
+      updated_at: product.updated_at.toISOString()
+    }));
+    
     res.status(200).json({
-      products,
+      products: processedProducts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
         total,
         pages: Math.ceil(total / parseInt(limit))
-      }
+      },
+      filters: {
+        category,
+        brand,
+        min_price,
+        max_price,
+        rating,
+        in_stock,
+        on_sale,
+        search,
+        seller,
+        condition
+      },
+      success: true
     });
   } catch (error) {
-    console.error('Search products error:', error);
-    res.status(500).json({ message: 'Server error while searching products' });
-  }
-};
-
-// Get products by category
-const getProductsByCategory = async (req, res) => {
-  try {
-    const { categoryId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    const offset = (page - 1) * limit;
-    
-    const query = `
-      SELECT * FROM products 
-      WHERE category_id = ? 
-      ORDER BY created_at DESC 
-      LIMIT ? OFFSET ?
-    `;
-    
-    const [products] = await db.pool.execute(query, [categoryId, parseInt(limit), parseInt(offset)]);
-    
-    // Get total count for pagination
-    const countQuery = 'SELECT COUNT(*) as total FROM products WHERE category_id = ?';
-    const [countResult] = await db.pool.execute(countQuery, [categoryId]);
-    const total = countResult[0].total;
-    
-    res.status(200).json({
-      products,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
-      }
+    console.error('Get products error:', error);
+    res.status(500).json({ 
+      message: 'Server error while fetching products', 
+      error: error.message 
     });
-  } catch (error) {
-    console.error('Get products by category error:', error);
-    res.status(500).json({ message: 'Server error while fetching products by category' });
-  }
-};
-
-// Get recommended products for user
-const getRecommendedProducts = async (req, res) => {
-  try {
-    // This is a simplified recommendation logic
-    // In a real application, this would be more sophisticated
-    const userId = req.user ? req.user.userId : null;
-    
-    let query;
-    let params = [];
-    
-    if (userId) {
-      // Get user's purchase history or browsing history to recommend similar products
-      query = `
-        SELECT DISTINCT p.* FROM products p
-        JOIN orders o ON p.category_id = (
-          SELECT p2.category_id 
-          FROM products p2 
-          JOIN order_items oi ON p2.id = oi.product_id 
-          JOIN orders o2 ON oi.order_id = o2.id 
-          WHERE o2.user_id = ?
-          ORDER BY o2.created_at DESC 
-          LIMIT 1
-        )
-        WHERE p.id != (
-          SELECT p3.id 
-          FROM products p3 
-          JOIN order_items oi ON p3.id = oi.product_id 
-          JOIN orders o ON oi.order_id = o.id 
-          WHERE o.user_id = ? 
-          ORDER BY o.created_at DESC 
-          LIMIT 1
-        )
-        LIMIT 10
-      `;
-      params = [userId, userId];
-    } else {
-      // If user not logged in, return trending products
-      query = `
-        SELECT * FROM products 
-        ORDER BY views DESC, created_at DESC 
-        LIMIT 10
-      `;
-    }
-    
-    const [products] = await db.pool.execute(query, params);
-    
-    res.status(200).json({ products });
-  } catch (error) {
-    console.error('Get recommended products error:', error);
-    res.status(500).json({ message: 'Server error while fetching recommended products' });
   }
 };
 
@@ -212,172 +191,124 @@ const getRecommendedProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.userId; // Optional - for tracking views
     
-    const query = `
-      SELECT p.*, c.name as category_name 
-      FROM products p 
-      LEFT JOIN categories c ON p.category_id = c.id 
-      WHERE p.id = ?
+    // Get product with related information
+    const productQuery = `
+      SELECT 
+        p.*,
+        c.name as category_name,
+        c.description as category_description,
+        b.name as brand_name,
+        b.description as brand_description,
+        u.name as seller_name,
+        u.email as seller_email,
+        u.id as seller_id,
+        (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id AND is_approved = 1) as calculated_rating,
+        (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id AND is_approved = 1) as review_count,
+        (SELECT COUNT(*) FROM wishlist_items WHERE product_id = p.id) as wishlist_count,
+        (SELECT COUNT(*) FROM cart_items WHERE product_id = p.id) as cart_count,
+        (SELECT COUNT(*) FROM product_questions WHERE product_id = p.id AND is_approved = 1) as question_count,
+        (p.stock_quantity - p.reserved_quantity) as available_stock
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      LEFT JOIN users u ON p.created_by = u.id
+      WHERE p.id = ? AND p.is_active = 1
     `;
     
-    const [products] = await db.pool.execute(query, [id]);
+    const [products] = await db.pool.execute(productQuery, [id]);
     
     if (products.length === 0) {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    // Increment view count
-    await db.pool.execute('UPDATE products SET views = views + 1 WHERE id = ?', [id]);
+    const product = products[0];
     
-    res.status(200).json({ product: products[0] });
-  } catch (error) {
-    console.error('Get product by ID error:', error);
-    res.status(500).json({ message: 'Server error while fetching product' });
-  }
-};
-
-// Create new product (admin/seller only)
-const createProduct = async (req, res) => {
-  try {
-    const { name, description, price, category_id, stock_quantity, images, specifications } = req.body;
-    const userId = req.user.userId;
+    // Get product images
+    const imagesQuery = 'SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order ASC';
+    const [productImages] = await db.pool.execute(imagesQuery, [id]);
     
-    // Basic validation
-    if (!name || !price || !category_id) {
-      return res.status(400).json({ message: 'Name, price, and category are required' });
-    }
+    // Get product specifications
+    const specsQuery = 'SELECT * FROM product_specifications WHERE product_id = ? ORDER BY sort_order ASC';
+    const [productSpecs] = await db.pool.execute(specsQuery, [id]);
     
-    // Check if the user is seller or admin
-    const userQuery = 'SELECT role FROM users WHERE id = ?';
-    const [users] = await db.pool.execute(userQuery, [userId]);
-    
-    if (users.length === 0 || (users[0].role !== 'admin' && users[0].role !== 'seller')) {
-      return res.status(403).json({ message: 'Access denied. Only admin and seller can create products.' });
-    }
-    
-    const query = `
-      INSERT INTO products (name, description, price, category_id, stock_quantity, images, specifications, created_by) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    // Get product variants
+    const variantsQuery = `
+      SELECT * FROM product_variants 
+      WHERE product_id = ? AND is_active = 1
+      ORDER BY price ASC
     `;
+    const [productVariants] = await db.pool.execute(variantsQuery, [id]);
     
-    const [result] = await db.pool.execute(query, [
-      name, 
-      description, 
-      price, 
-      category_id, 
-      stock_quantity || 0, 
-      JSON.stringify(images || []), 
-      JSON.stringify(specifications || {}), 
-      userId
-    ]);
+    // Get related products
+    const relatedQuery = `
+      SELECT p.*, 
+             (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id AND is_approved = 1) as rating
+      FROM products p
+      WHERE p.category_id = ? 
+        AND p.id != ?
+        AND p.is_active = 1
+        AND (p.stock_quantity - p.reserved_quantity) > 0
+      ORDER BY p.view_count DESC
+      LIMIT 4
+    `;
+    const [relatedProducts] = await db.pool.execute(relatedQuery, [product.category_id, id]);
     
-    // Update category product count
-    await db.pool.execute('UPDATE categories SET product_count = product_count + 1 WHERE id = ?', [category_id]);
+    // Get product reviews
+    const reviewsQuery = `
+      SELECT r.*, u.name as customer_name, u.avatar as customer_avatar
+      FROM product_reviews r
+      JOIN users u ON r.user_id = u.id
+      WHERE r.product_id = ? AND r.is_approved = 1
+      ORDER BY r.created_at DESC
+      LIMIT 10
+    `;
+    const [productReviews] = await db.pool.execute(reviewsQuery, [id]);
     
-    res.status(201).json({ 
-      message: 'Product created successfully', 
-      productId: result.insertId 
+    // Update product view count
+    if (userId) {
+      await db.pool.execute('UPDATE products SET views = views + 1 WHERE id = ?', [id]);
+    }
+    
+    res.status(200).json({
+      product: {
+        ...product,
+        calculated_rating: parseFloat(product.calculated_rating || 0),
+        review_count: product.review_count || 0,
+        wishlist_count: product.wishlist_count || 0,
+        cart_count: product.cart_count || 0,
+        question_count: product.question_count || 0,
+        available_stock: product.available_stock || 0,
+        stock_status: product.available_stock > 10 ? 'in_stock' : product.available_stock > 0 ? 'low_stock' : 'out_of_stock',
+        images: productImages,
+        specifications: productSpecs,
+        variants: productVariants,
+        related_products: relatedProducts.map(p => ({
+          ...p,
+          rating: parseFloat(p.rating || 0)
+        })),
+        reviews: productReviews.map(review => ({
+          ...review,
+          created_at: review.created_at.toISOString()
+        })),
+        specifications: product.specifications ? JSON.parse(product.specifications) : {},
+        attributes: product.attributes ? JSON.parse(product.attributes) : {},
+        tags: product.tags ? JSON.parse(product.tags) : [],
+        price: parseFloat(product.price),
+        sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
+        created_at: product.created_at.toISOString(),
+        updated_at: product.updated_at.toISOString()
+      },
+      success: true
     });
   } catch (error) {
-    console.error('Create product error:', error);
-    res.status(500).json({ message: 'Server error while creating product' });
-  }
-};
-
-// Update product (admin/seller only)
-const updateProduct = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { name, description, price, category_id, stock_quantity, images, specifications } = req.body;
-    const userId = req.user.userId;
-    
-    // Check if the user is seller or admin
-    const userQuery = 'SELECT role FROM users WHERE id = ?';
-    const [users] = await db.pool.execute(userQuery, [userId]);
-    
-    if (users.length === 0 || (users[0].role !== 'admin' && users[0].role !== 'seller')) {
-      return res.status(403).json({ message: 'Access denied. Only admin and seller can update products.' });
-    }
-    
-    // Check if product exists and if user has permission to update it
-    const productQuery = 'SELECT created_by FROM products WHERE id = ?';
-    const [products] = await db.pool.execute(productQuery, [id]);
-    
-    if (products.length === 0) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-    
-    const product = products[0];
-    if (users[0].role !== 'admin' && product.created_by !== userId) {
-      return res.status(403).json({ message: 'Access denied. You can only update products you created.' });
-    }
-    
-    const query = `
-      UPDATE products 
-      SET name = ?, description = ?, price = ?, category_id = ?, stock_quantity = ?, 
-          images = ?, specifications = ?, updated_at = NOW()
-      WHERE id = ?
-    `;
-    
-    await db.pool.execute(query, [
-      name, description, price, category_id, stock_quantity, 
-      JSON.stringify(images || []), JSON.stringify(specifications || {}), id
-    ]);
-    
-    res.status(200).json({ message: 'Product updated successfully' });
-  } catch (error) {
-    console.error('Update product error:', error);
-    res.status(500).json({ message: 'Server error while updating product' });
-  }
-};
-
-// Delete product (admin/seller only)
-const deleteProduct = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user.userId;
-    
-    // Check if the user is seller or admin
-    const userQuery = 'SELECT role FROM users WHERE id = ?';
-    const [users] = await db.pool.execute(userQuery, [userId]);
-    
-    if (users.length === 0 || (users[0].role !== 'admin' && users[0].role !== 'seller')) {
-      return res.status(403).json({ message: 'Access denied. Only admin and seller can delete products.' });
-    }
-    
-    // Check if product exists and if user has permission to delete it
-    const productQuery = 'SELECT created_by, category_id FROM products WHERE id = ?';
-    const [products] = await db.pool.execute(productQuery, [id]);
-    
-    if (products.length === 0) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-    
-    const product = products[0];
-    if (users[0].role !== 'admin' && product.created_by !== userId) {
-      return res.status(403).json({ message: 'Access denied. You can only delete products you created.' });
-    }
-    
-    // Delete product
-    await db.pool.execute('DELETE FROM products WHERE id = ?', [id]);
-    
-    // Update category product count
-    await db.pool.execute('UPDATE categories SET product_count = product_count - 1 WHERE id = ?', [product.category_id]);
-    
-    res.status(200).json({ message: 'Product deleted successfully' });
-  } catch (error) {
-    console.error('Delete product error:', error);
-    res.status(500).json({ message: 'Server error while deleting product' });
+    console.error('Get product error:', error);
+    res.status(500).json({ message: 'Server error while fetching product', error: error.message });
   }
 };
 
 module.exports = {
-  getAllProducts,
-  getProductById,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-  searchProducts,
-  getProductsByCategory,
-  getRecommendedProducts
+  getProducts,
+  getProductById
 };

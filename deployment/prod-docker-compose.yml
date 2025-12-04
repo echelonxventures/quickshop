@@ -206,6 +206,21 @@ services:
       - app-network
     restart: unless-stopped
 
+  # Webhook Service for Auto-deployment
+  webhook:
+    build:
+      context: ./webhook
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-your_webhook_secret_here}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock  # For docker commands
+    networks:
+      - app-network
+    restart: unless-stopped
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
@@ -225,6 +240,7 @@ services:
       - admin-portal
       - support-portal
       - analytics-portal
+      - webhook
 
   # Filebeat for Log Collection (Optional)
   filebeat:
