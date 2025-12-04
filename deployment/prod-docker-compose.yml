@@ -1,0 +1,260 @@
+version: '3.8'
+
+services:
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      # Core Configuration
+      - NODE_ENV=production
+      - PORT=5000
+      
+      # Database Configuration
+      - DB_HOST=mysql
+      - DB_USER=admin
+      - DB_PASSWORD=your_secure_password
+      - DB_NAME=quickshop
+      - DB_PORT=3306
+      
+      # Authentication & Security
+      - JWT_SECRET=your_super_secret_jwt_key_that_should_be_long_enough
+      - JWT_EXPIRE=7d
+      - BCRYPT_ROUNDS=12
+      
+      # Payment Gateway Configuration
+      - STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+      - STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+      - PAYPAL_CLIENT_ID=your_paypal_client_id
+      - PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+      - RAZORPAY_KEY_ID=your_razorpay_key_id
+      - RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+      
+      # Email Configuration
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_USER=your_email@gmail.com
+      - EMAIL_PASS=your_app_password
+      - FROM_EMAIL=noreply@yourdomain.com
+      
+      # Cloud Storage Configuration
+      - CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+      - CLOUDINARY_API_KEY=your_cloudinary_api_key
+      - CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+      
+      # AI/ML Configuration
+      - OPENAI_API_KEY=your_openai_api_key
+      
+      # Application Configuration
+      - APP_NAME=QuickShop
+      - APP_URL=https://quickshop.echelonxventures.org
+      - ADMIN_EMAIL=admin@quickshop.echelonxventures.org
+      - SUPPORT_EMAIL=support@quickshop.echelonxventures.org
+      - LOG_LEVEL=info
+      
+      # Cache Configuration
+      - REDIS_URL=redis://redis:6379
+      - CACHE_TTL=3600
+      
+      # Rate Limiting
+      - RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
+      - RATE_LIMIT_MAX=100
+      
+      # File Upload Configuration
+      - MAX_FILE_SIZE=10485760  # 10MB
+      - UPLOAD_DIR=./uploads
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - mysql
+      - redis
+    
+  # Frontend React Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=https://quickshop.echelonxventures.org/api
+      - REACT_APP_STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+      - REACT_APP_PAYPAL_CLIENT_ID=your_paypal_client_id
+      - REACT_APP_ENABLE_ANALYTICS=true
+      - REACT_APP_GA_MEASUREMENT_ID=GA_MEASUREMENT_ID
+      - REACT_APP_HOTJAR_ID=HOTJAR_ID
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # Admin Portal
+  admin-portal:
+    build:
+      context: ./admin_portal
+      dockerfile: Dockerfile.production
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_URL=https://quickshop.echelonxventures.org/api
+      - REACT_APP_ADMIN=true
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # Support Portal
+  support-portal:
+    build:
+      context: ./support_portal
+      dockerfile: Dockerfile.production
+    ports:
+      - "3002:3000"
+    environment:
+      - REACT_APP_API_URL=https://quickshop.echelonxventures.org/api
+      - REACT_APP_SUPPORT=true
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # Analytics Portal
+  analytics-portal:
+    build:
+      context: ./analytics_portal
+      dockerfile: Dockerfile.production
+    ports:
+      - "3003:3000"
+    environment:
+      - REACT_APP_API_URL=https://quickshop.echelonxventures.org/api
+      - REACT_APP_ANALYTICS=true
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  # MySQL Database (OCI Always Free Compatible)
+  mysql:
+    image: mysql:8.0-oracle
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+      MYSQL_DATABASE: quickshop
+      MYSQL_USER: admin
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_user_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./database/seed_data.sql:/docker-entrypoint-initdb.d/02_seed.sql
+      - ./config/mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf
+    networks:
+      - app-network
+    restart: unless-stopped
+    command: >
+      --innodb_buffer_pool_size=128M
+      --max_connections=100
+      --key_buffer_size=16M
+      --table_open_cache=64
+      --sort_buffer_size=512K
+      --net_buffer_length=8K
+      --read_buffer_size=256K
+      --read_rnd_buffer_size=512K
+      --myisam_sort_buffer_size=8M
+      --general_log=0
+      --slow_query_log=0
+
+  # Redis Cache (OCI Always Free Compatible)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: >
+      --maxmemory 100mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --save 900 1 300 10 60 10000
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Elasticsearch for Analytics (Optional - Remove if not needed for free tier)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx.conf:/etc/nginx/nginx.conf
+      - ./deployment/ssl:/etc/nginx/ssl
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - frontend
+      - admin-portal
+      - support-portal
+      - analytics-portal
+
+  # Filebeat for Log Collection (Optional)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.10.0
+    user: root
+    volumes:
+      - ./filebeat.docker.yml:/usr/share/filebeat/filebeat.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./backend/logs:/app/logs:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  es_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  mysql_user_password:
+    file: ./secrets/mysql_user_password.txt

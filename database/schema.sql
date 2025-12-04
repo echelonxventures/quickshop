@@ -263,7 +263,7 @@ CREATE TABLE products (
   min_quantity INT DEFAULT 1,
   max_quantity INT DEFAULT NULL,
   backorder_policy ENUM('no', 'yes', 'notify') DEFAULT 'no',
-  condition ENUM('new', 'used', 'refurbished', 'open_box') DEFAULT 'new',
+  `condition` ENUM('new', 'used', 'refurbished', 'open_box') DEFAULT 'new', -- Use backticks to escape MySQL reserved word
   age_group ENUM('newborn', 'infant', 'toddler', 'kids', 'adult') DEFAULT 'adult',
   gender ENUM('male', 'female', 'unisex') DEFAULT 'unisex',
   material VARCHAR(255),
@@ -680,7 +680,7 @@ CREATE TABLE inventory_alerts (
   product_id INT NOT NULL,
   warehouse_id INT NULL,
   alert_type ENUM('low_stock', 'out_of_stock', 'over_stock', 'min_reached', 'max_exceeded') NOT NULL,
-  condition VARCHAR(255) NOT NULL, -- The condition that triggered the alert
+  `condition` VARCHAR(255) NOT NULL, -- Use backticks to escape MySQL reserved word
   triggered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   notified BOOLEAN DEFAULT FALSE, -- Whether alert was notified to admin/seller
   notified_at TIMESTAMP NULL,

@@ -30,7 +30,7 @@ INSERT INTO brands (name, slug, description, website, is_active) VALUES
 ('Sony', 'sony', 'Sony electronics and entertainment', 'https://sony.com', 1);
 
 -- Insert sample products
-INSERT INTO products (name, slug, description, short_description, price, sale_price, sku, category_id, brand_id, stock_quantity, seller_id, is_active, is_featured, created_by, condition) VALUES
+INSERT INTO products (name, slug, description, short_description, price, sale_price, sku, category_id, brand_id, stock_quantity, seller_id, is_active, is_featured, created_by, `condition`) VALUES
 ('iPhone 14 Pro Max', 'iphone-14-pro-max', 'Latest iPhone 14 Pro Max with A16 Bionic chip', 'Latest iPhone with advanced features', 1099.99, 1049.99, 'IPH-001', 1, 1, 50, 4, 1, 1, 4, 'new'),
 ('AirPods Pro 2nd Gen', 'airpods-pro', 'Apple AirPods Pro with Active Noise Cancellation', 'Premium wireless earbuds', 249.99, 229.99, 'AIR-001', 1, 1, 100, 4, 1, 1, 4, 'new'),
 ('Nike Air Max 270', 'nike-air-max', 'Nike Air Max 270 running shoes', 'Comfortable running shoes', 149.99, NULL, 'NIK-001', 2, 2, 200, 4, 1, 0, 4, 'new'),
@@ -76,14 +76,55 @@ INSERT INTO user_preferences (user_id, language, currency, timezone) VALUES
 (3, 'en', 'USD', 'America/Los_Angeles');
 
 -- Insert default system configurations
--- Already inserted in schema.sql
-
--- Insert sample analytics configuration
 INSERT INTO system_config (config_key, config_value, config_type, description, category, is_public) VALUES
-('analytics_enabled', '1', 'boolean', 'Whether analytics tracking is enabled', 'analytics', FALSE),
-('analytics_google_tag_manager', '', 'string', 'Google Tag Manager ID', 'analytics', FALSE),
-('analytics_facebook_pixel', '', 'string', 'Facebook Pixel ID', 'analytics', FALSE),
-('analytics_hotjar', '', 'string', 'Hotjar Site ID', 'analytics', FALSE),
-('analytics_cookie_consent_enabled', '1', 'boolean', 'Whether cookie consent is required', 'analytics', TRUE);
+('site_name', 'QuickShop', 'string', 'Name of the site', 'site', TRUE),
+('site_slogan', 'Your shopping destination', 'string', 'Site slogan', 'site', TRUE),
+('site_description', 'Buy and sell anything online with QuickShop', 'string', 'Meta description for the site', 'seo', TRUE),
+('site_keywords', 'shopping, ecommerce, online store, buy, sell', 'string', 'Meta keywords for the site', 'seo', TRUE),
+('site_logo', '/assets/logo.png', 'string', 'URL to the site logo', 'site', TRUE),
+('site_favicon', '/favicon.ico', 'string', 'URL to the site favicon', 'site', FALSE),
+('site_currency', 'USD', 'string', 'Default currency for the site', 'payment', TRUE),
+('site_timezone', 'UTC', 'string', 'Default timezone for the site', 'site', FALSE),
+('site_language', 'en', 'string', 'Default language for the site', 'site', TRUE),
+('contact_email', 'contact@quickshop.echelonxventures.org', 'string', 'Contact email for the site', 'contact', TRUE),
+('support_email', 'support@quickshop.echelonxventures.org', 'string', 'Support email for the site', 'contact', TRUE),
+('from_email', 'noreply@quickshop.echelonxventures.org', 'string', 'From email for site communications', 'email', FALSE),
+('maintenance_mode', '0', 'boolean', 'Whether the site is in maintenance mode', 'site', TRUE),
+('registration_enabled', '1', 'boolean', 'Whether user registration is enabled', 'user', TRUE),
+('guest_checkout_enabled', '1', 'boolean', 'Whether guest checkout is enabled', 'checkout', TRUE),
+('terms_and_conditions_url', '/pages/terms-and-conditions', 'string', 'URL to the terms and conditions page', 'site', TRUE),
+('privacy_policy_url', '/pages/privacy-policy', 'string', 'URL to the privacy policy page', 'site', TRUE),
+('return_policy_url', '/pages/return-policy', 'string', 'URL to the return policy page', 'site', TRUE),
+('shipping_policy_url', '/pages/shipping-policy', 'string', 'URL to the shipping policy page', 'site', TRUE),
+('tax_enabled', '1', 'boolean', 'Whether tax calculation is enabled', 'payment', FALSE),
+('tax_rate', '8.5', 'number', 'Default tax rate percentage', 'payment', FALSE),
+('tax_country', 'US', 'string', 'Country for tax calculation', 'payment', FALSE),
+('tax_state', '', 'string', 'State for tax calculation', 'payment', FALSE),
+('shipping_enabled', '1', 'boolean', 'Whether shipping calculation is enabled', 'shipping', TRUE),
+('free_shipping_threshold', '50.00', 'number', 'Threshold for free shipping', 'shipping', TRUE),
+('default_shipping_method', 'standard', 'string', 'Default shipping method', 'shipping', FALSE),
+('order_confirmation_email', '1', 'boolean', 'Whether to send order confirmation email', 'email', FALSE),
+('shipment_notification_email', '1', 'boolean', 'Whether to send shipment notification email', 'email', FALSE),
+('newsletter_subscription_enabled', '1', 'boolean', 'Whether newsletter subscription is enabled', 'user', TRUE),
+('affiliate_program_enabled', '1', 'boolean', 'Whether affiliate program is enabled', 'affiliate', TRUE),
+('social_login_enabled', '1', 'boolean', 'Whether social login is enabled', 'authentication', TRUE),
+('two_factor_auth_enabled', '0', 'boolean', 'Whether two-factor authentication is enabled', 'authentication', FALSE),
+('email_verification_required', '1', 'boolean', 'Whether email verification is required', 'authentication', FALSE),
+('password_minimum_length', '8', 'number', 'Minimum password length', 'authentication', FALSE),
+('max_login_attempts', '5', 'number', 'Maximum login attempts before lockout', 'authentication', FALSE),
+('lockout_duration_minutes', '30', 'number', 'Duration of account lockout in minutes', 'authentication', FALSE);
+
+-- Insert sample categories
+INSERT INTO categories (name, slug, description, is_active, sort_order) VALUES
+('Electronics', 'electronics', 'Electronic devices and accessories', 1, 1),
+('Fashion', 'fashion', 'Clothing, shoes, and accessories', 1, 2),
+('Home & Garden', 'home-garden', 'Furniture, home decor, and garden supplies', 1, 3),
+('Books', 'books', 'Books, magazines, and educational materials', 1, 4),
+('Sports & Outdoors', 'sports-outdoors', 'Sports equipment and outdoor gear', 1, 5),
+('Toys & Games', 'toys-games', 'Toys, games, and entertainment', 1, 6),
+('Beauty & Personal Care', 'beauty-personal-care', 'Cosmetics, skincare, and personal care', 1, 7),
+('Automotive', 'automotive', 'Car parts, accessories, and tools', 1, 8),
+('Food & Grocery', 'food-grocery', 'Food products and grocery items', 1, 9),
+('Pet Supplies', 'pet-supplies', 'Pet food, toys, and accessories', 1, 10);
 
 COMMIT;
