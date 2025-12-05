@@ -1,13 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  createOrder, 
-  getOrders, 
-  getOrderById, 
-  updateOrderStatus,
-  processPayment,
-  getPaymentMethods
-} = require('./orderController');
+const { createOrder, updateOrder, getOrders, getOrderById, processPayment, trackOrder, cancelOrder, returnOrder } = require('./orderController');
 
 // Create a new order
 router.post('/', createOrder);
@@ -15,16 +8,22 @@ router.post('/', createOrder);
 // Get all orders for a user
 router.get('/', getOrders);
 
-// Get single order by ID
+// Get order by ID
 router.get('/:id', getOrderById);
 
-// Update order status (admin/seller only)
-router.put('/:id/status', updateOrderStatus);
+// Update order status
+router.put('/:id', updateOrder);
 
-// Process payment for an order
-router.post('/payment', processPayment);
+// Process order payment
+router.post('/:id/payment', processPayment);
 
-// Get available payment methods
-router.get('/payment/methods', getPaymentMethods);
+// Track order status
+router.get('/:id/track', trackOrder);
+
+// Cancel order
+router.post('/:id/cancel', cancelOrder);
+
+// Return order
+router.post('/:id/return', returnOrder);
 
 module.exports = router;

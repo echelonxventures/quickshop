@@ -1,38 +1,60 @@
 #!/bin/bash
+# Initialize QuickShop database
 
-# QuickShop Initialization Script
+echo "Initializing QuickShop database..."
 
-echo "Starting QuickShop e-commerce platform initialization..."
+# Check if MySQL connection is available
+if ! command -v mysql &> /dev/null; then
+    echo "MySQL client is not installed. Please install it first."
+    exit 1
+fi
 
-# Check if MySQL is available
-echo "Checking MySQL connection..."
-until mysql -h 10.0.1.23 -u admin -pyour_mysql_password -e "SHOW DATABASES;" 2>/dev/null; do
-    echo "Waiting for MySQL to start..."
-    sleep 5
-done
+# Database connection variables
+DB_HOST=${DB_HOST:-"10.0.1.23"}
+DB_USER=${DB_USER:-"admin"}
+DB_PASSWORD=${DB_PASSWORD:-"your_mysql_password"}
+DB_NAME=${DB_NAME:-"quickshop"}
 
-echo "MySQL is available!"
+echo "Connecting to MySQL at $DB_HOST as $DB_USER..."
 
 # Create database if it doesn't exist
-echo "Creating database if it doesn't exist..."
-mysql -h 10.0.1.23 -u admin -pyour_mysql_password -e "CREATE DATABASE IF NOT EXISTS quickshop CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD -e "CREATE DATABASE IF NOT EXISTS $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+if [ $? -eq 0 ]; then
+    echo "Database $DB_NAME created successfully (or already existed)."
+else
+    echo "Error creating database. Please check your credentials and connection."
+    exit 1
+fi
 
 # Import schema
 echo "Importing database schema..."
-mysql -h 10.0.1.23 -u admin -pyour_mysql_password quickshop < /home/ubuntu/quickshop/database/schema.sql
+mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < ../database/schema.sql
 
-# Import seed data
-echo "Importing seed data..."
-mysql -h 10.0.1.23 -u admin -pyour_mysql_password quickshop < /home/ubuntu/quickshop/database/seed_data.sql
+if [ $? -eq 0 ]; then
+    echo "Schema imported successfully."
+else
+    echo "Error importing schema."
+    exit 1
+fi
 
-echo "Database initialized successfully!"
+# Ask if user wants to import seed data
+read -p "Do you want to import seed data? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Importing seed data..."
+    mysql -h $DB_HOST -u $DB_USER -p$DB_PASSWORD $DB_NAME < ../database/seed_data.sql
+    
+    if [ $? -eq 0 ]; then
+        echo "Seed data imported successfully."
+    else
+        echo "Error importing seed data."
+        exit 1
+    fi
+fi
 
-# Start the application
-echo "Starting application services..."
-cd /home/ubuntu/quickshop
-docker-compose up -d
-
-echo "QuickShop platform is now running!"
-echo "Access the platform at: http://quickshop.echelonxventures.org"
-echo "Admin portal: http://quickshop.echelonxventures.org/admin"
-echo "Support portal: http://quickshop.echelonxventures.org/support"
+echo " "
+echo "Database initialization completed successfully!"
+echo "Database: $DB_NAME"
+echo "Host: $DB_HOST"
+echo "User: $DB_USER"
